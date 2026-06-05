@@ -226,8 +226,10 @@
         }
 
         .btn-abort:disabled {
-            display: none !important;
-        }
+    opacity: 0 !important;
+    pointer-events: none;
+    transform: translateY(-10px);
+}
 
         /* Contenido Centrado y Grande */
         .room-center-panel {
