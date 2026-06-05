@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COBAED 29</title>
+     <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div id="app-viewport">
+        <canvas id="fx-canvas"></canvas>
+
+        <section id="map-screen">
+            <header class="map-header">
+                <h1>CONOCE NUESTRA OFERTA EDUCATIVA</h1>
+            </header>
+            
+            <div id="hotspots-container"></div>
+        </section>
+
+        <section id="room-screen" class="hidden" style="opacity: 0;">
+            <div id="room-modal" class="room-overlay">
+                
+                <header class="room-header">
+                    <span id="active-room-title" class="room-title">Zona Académica</span>
+                    <button id="btn-abort-mission" class="btn-abort" onclick="abortRoomExploration()">Regresar al mapa</button>
+                </header>
+
+                <div class="room-center-panel">
+                    <div id="active-room-narrative" class="narrative-box"></div>
+
+                    <div id="active-challenge-container" class="challenge-box">
+                        <p id="active-room-question" class="challenge-question"></p>
+                        
+                        <div id="interaction-controls" style="width: 100%; display: flex; justify-content: center;">
+                            <form id="challenge-form" onsubmit="evaluateChallengeInput(event)" class="interaction-form">
+                                <input type="text" id="challenge-user-input" class="academic-input" placeholder="Escriba su respuesta..." autocomplete="off" oninput="sanitizeInput(this)">
+                                <button type="submit" class="btn-submit">Validar</button>
+                            </form>
+                        </div>
+
+                        <div id="challenge-feedback" class="feedback-message"></div>
+
+                        <div id="secure-return-container" class="success-action-container hidden">
+                            <button class="btn-secure-return" onclick="secureReturnToMap()">Confirmar y Continuar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <footer style="text-align: center;">
+                    <span style="font-size: 0.9rem; opacity: 0.6; letter-spacing: 0.5px;">COBAED no es difícil... ES MEJOR</span>
+                </footer>
+
+            </div>
+        </section>
+
+        <section id="victory-screen" class="hidden" style="opacity: 0;">
+            <div class="victory-frame">
+                <h1 class="victory-title">Evaluación Concluida con Éxito</h1>
+                <p class="victory-text">Ha completado el recorrido por todas las áreas del plantel y respondido correctamente los cuestionamientos académicos presentados.</p>
+                <div style="font-size: 1.1rem; color: var(--color-primary); font-weight: bold; letter-spacing: 0.5px;">SISTEMA COMPLETADO — EXCELENCIA ACADÉMICA</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        /**********************************************************************
+         * CONFIGURACIÓN DE IMÁGENES DE FONDO (EDITABLES)
+         **********************************************************************/
+        const MAP_BACKGROUND_IMAGE = "map.png"; 
+        
+        const ROOM_BACKGROUND_IMAGES = {   
+            palapas: "domo.png",     
+            biblioteca: "biblioteca.png", 
+            jardin: "jardin.png",       
+            salon: "orientacion.png",         
+            laboratorio: "lab.png" 
+        };
+
+        /**********************************************************************
+         * DATOS DE LAS HABITACIONES
+         **********************************************************************/
+        const ROOMS_DATA = [
+            {
+                id: "palapas",
+                name: "Zonas de Convivencia",
+                xPercent: 51.6,
+                yPercent: 35.2,
+                bgImage: ROOM_BACKGROUND_IMAGES.palapas,
+                description: "Por las tardes, el plantel se llena de energía con las actividades paraescolares, donde puedes liberar tu talento en el fútbol, el voleibol, la música o la danza, entre muchas otras",
+                question: "¿Cómo se les llama a las actividades deportivas y culturales que ofrecemos, como fútbol y danza?",
+                answer: "PARAESCOLARES"
+            },
+            {
+                id: "biblioteca",
+                name: "Biblioteca",
+                xPercent: 67.2,
+                yPercent: 50.6,
+                bgImage: ROOM_BACKGROUND_IMAGES.biblioteca,
+                description: "En este espacio promovemos el hábito de la lectura. Lo mejor de todo es que aquí te entregamos tus paquetes de libros oficiales de manera gratuita al inicio de cada semestre.",
+                question: "¿Qué valioso recurso educativo impreso te regala el plantel para que estudies en todas tus materias?",
+                answer: "LIBROS"
+            },
+            {
+                id: "jardin",
+                name: "Áreas Comunes",
+                xPercent: 75.1,
+                yPercent: 69.5,
+                bgImage: ROOM_BACKGROUND_IMAGES.jardin,
+                description: "En nuestra escuela no solo vienes a memorizar materias, nos preocupamos por tu crecimiento integral, cuidando tu salud mental, física, social y tus valores.",
+                question: "Buscamos que tu desarrollo como estudiante en el plantel sea completo, es decir, un desarrollo de tipo...",
+                answer: "INTEGRAL"
+            },
+            {
+                id: "salon",
+                name: "Apoyo Educativo",
+                xPercent: 36.0,
+                yPercent: 85.8,
+                bgImage: ROOM_BACKGROUND_IMAGES.salon,
+                description: "Aula equipada para sesiones académicas, donde se desarrollan las capacidades lógico-matemáticas.",
+                question: "¿Cuál es el valor del ángulo de un giro completo o circunferencia expresado en grados?",
+                answer: "360"
+            },
+            {
+                id: "laboratorio",
+                name: "Laboratorios",
+                xPercent: 65.0,
+                yPercent: 89.1,
+                bgImage: ROOM_BACKGROUND_IMAGES.laboratorio,
+                description: "Al pasar a tercer semestre, tú tienes el poder de elegir el rumbo de tu futuro mediante nuestras capacitaciones para el trabajo: TICS, Contabilidad, Administración, Auxiliar Educativo e Higiene y Salud",
+                question: "¿Qué nombre reciben las especialidades técnicas que te preparan para el trabajo?",
+                answer: "CAPACITACIONES"
+            }
+        ];
+
+        const GAME_STATE = {
+            completedRooms: [],
+            activeRoomId: null
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initializeMapInterface();
+            setupCanvasResizing();
+        });
+
+        function initializeMapInterface() {
+            const mapScreen = document.getElementById("map-screen");
+            mapScreen.style.backgroundImage = `url("${MAP_BACKGROUND_IMAGE}")`;
+
+            const container = document.getElementById("hotspots-container");
+            container.innerHTML = "";
+
+            ROOMS_DATA.forEach(room => {
+                const hotspot = document.createElement("div");
+                hotspot.className = "node-hotspot";
+                hotspot.style.left = `${room.xPercent}%`;
+                hotspot.style.top = `${room.yPercent}%`;
+                hotspot.setAttribute("data-id", room.id);
+                hotspot.onclick = () => enterRoomExploration(room.id);
+
+                const marker = document.createElement("div");
+                marker.className = "node-marker";
+
+                const label = document.createElement("div");
+                label.className = "node-label";
+                label.innerText = room.name;
+
+                hotspot.appendChild(marker);
+                hotspot.appendChild(label);
+                container.appendChild(hotspot);
+            });
+        }
+
+        /**********************************************************************
+         * SANITIZACIÓN DE ENTRADA EN TIEMPO REAL (MAYÚSCULAS, SIN TILDES, SIN SÍMBOLOS)
+         **********************************************************************/
+        function sanitizeInput(inputElement) {
+            let value = inputElement.value;
+
+            // 1. Convertir a mayúsculas de manera directa
+            value = value.toUpperCase();
+
+            // 2. Mapear y remover tildes y caracteres con diacríticos comunes
+            const mapTildes = {
+                'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+                'Ü': 'U', 'Â': 'A', 'Ê': 'E', 'Î': 'I', 'Ô': 'O', 'Û': 'U'
+            };
+            value = value.split('').map(char => mapTildes[char] || char).join('');
+
+            // 3. Remover cualquier carácter que no sea una letra de la A-Z, espacio, número o la Ñ
+            value = value.replace(/[^A-Z0-9 Ñ]/g, '');
+
+            // Devolver el valor procesado limpio al cuadro de texto
+            inputElement.value = value;
+        }
+
+        /**********************************************************************
+         * FLUJO DE INTERFAZ Y TRANSICIONES SUAVES
+         **********************************************************************/
+        function enterRoomExploration(roomId) {
+    const room = ROOMS_DATA.find(r => r.id === roomId);
+    if (!room) return;
+
+    GAME_STATE.activeRoomId = roomId;
+
+    const roomScreen = document.getElementById("room-screen");
+    const mapScreen = document.getElementById("map-screen");
+    
+    // CAMBIO: Inicialmente entramos con opacidad 0 en la habitación (pantalla en blanco/fondo base)
+    roomScreen.style.opacity = "0";
+    roomScreen.style.backgroundImage = `url("${room.bgImage}")`;
+    
+    document.getElementById("challenge-user-input").value = "";
+    document.getElementById("challenge-feedback").innerText = "";
+    document.getElementById("challenge-feedback").className = "feedback-message";
+    
+    const narrativeBox = document.getElementById("active-room-narrative");
+    const challengeBox = document.getElementById("active-challenge-container");
+    
+    narrativeBox.classList.remove("visible");
+    challengeBox.classList.remove("visible");
+    document.getElementById("secure-return-container").classList.add("hidden");
+    document.getElementById("challenge-form").classList.remove("hidden");
+
+    const btnAbort = document.getElementById("btn-abort-mission");
+    btnAbort.disabled = false;
+
+    // EJECUCIÓN DEL EFECTO ZOOM ACUMULATIVO
+    mapScreen.style.transformOrigin = `${room.xPercent}% ${room.yPercent}%`;
+    mapScreen.style.transform = "scale(2.5)";
+    mapScreen.style.opacity = "0";
+    
+    // PASO 1: El mapa se desvanece por completo dejando la pantalla en blanco (0.6s)
+    setTimeout(() => {
+        mapScreen.classList.add("hidden");
+        roomScreen.classList.remove("hidden");
+        
+        // PASO 2: Transición de 1 segundo para revelar la imagen desde el fondo blanco
+        setTimeout(() => {
+            roomScreen.style.opacity = "1";
+            
+            // PASO 3: Una vez revelada la imagen, aparece el modal con la pregunta
+            setTimeout(() => {
+                const roomModal = document.getElementById("room-modal");
+                roomModal.classList.add("active-modal");
+
+                narrativeBox.innerText = room.description;
+                narrativeBox.classList.add("visible");
+                
+                setTimeout(() => {
+                    document.getElementById("active-room-question").innerText = room.question;
+                    challengeBox.classList.add("visible");
+                    document.getElementById("challenge-user-input").focus();
+                }, 1200);
+            }, 1000); // Sincronizado con la duración de la aparición de la imagen
+        }, 50); // Pequeño delay de renderizado para asegurar la transición limpia
+    }, 600); // Fin del zoom del mapa
+}
+
+        function evaluateChallengeInput(event) {
+            event.preventDefault();
+
+            const currentRoom = ROOMS_DATA.find(r => r.id === GAME_STATE.activeRoomId);
+            const inputElement = document.getElementById("challenge-user-input");
+            const feedbackElement = document.getElementById("challenge-feedback");
+
+            if (!currentRoom) return;
+
+            // Sanitización terminal en la validación: colapsar espacios sobrantes
+            const processedInput = inputElement.value.trim().replace(/\s+/g, ' ');
+            const expectedAnswer = currentRoom.answer.trim().replace(/\s+/g, ' ');
+
+            if (processedInput === expectedAnswer) {
+                feedbackElement.innerText = "Respuesta correcta. Registro académico actualizado.";
+                feedbackElement.className = "feedback-message success";
+                
+                document.getElementById("btn-abort-mission").disabled = true;
+                document.getElementById("btn-abort-mission").classList.add("hidden");
+                document.getElementById("challenge-form").classList.add("hidden");
+
+                if (!GAME_STATE.completedRooms.includes(currentRoom.id)) {
+                    GAME_STATE.completedRooms.push(currentRoom.id);
+                }
+
+                triggerSuccessFireworks();
+                document.getElementById("secure-return-container").classList.remove("hidden");
+                updateMapNodeStatus(currentRoom.id);
+            } else {
+                feedbackElement.innerText = "La respuesta ingresada es incorrecta. Verifique sus datos.";
+                feedbackElement.className = "feedback-message error";
+                inputElement.select();
+            }
+        }
+
+        /**********************************************************************
+         * CONTROL DE FLUJO ADICIONAL
+         **********************************************************************/
+        function abortRoomExploration() {
+            exitRoomToMap();
+        }
+
+        function secureReturnToMap() {
+            exitRoomToMap();
+            setTimeout(() => {
+                evaluateGlobalVictoryCondition();
+            }, 700);
+        }
+
+        function exitRoomToMap() {
+    const roomScreen = document.getElementById("room-screen");
+    const mapScreen = document.getElementById("map-screen");
+    const roomModal = document.getElementById("room-modal");
+
+    roomScreen.style.opacity = "0";
+    
+    setTimeout(() => {
+        roomScreen.classList.add("hidden");
+        mapScreen.classList.remove("hidden");
+        
+        // Remueve la clase del modal para la siguiente entrada
+        roomModal.classList.remove("active-modal");
+        
+        mapScreen.style.opacity = "1";
+        mapScreen.style.transform = "scale(1)";
+        
+        GAME_STATE.activeRoomId = null;
+    }, 600);
+}
+
+        function updateMapNodeStatus(roomId) {
+            const nodeElement = document.querySelector(`.node-hotspot[data-id="${roomId}"]`);
+            if (nodeElement) {
+                nodeElement.classList.add("completed");
+            }
+        }
+
+        function evaluateGlobalVictoryCondition() {
+            if (GAME_STATE.completedRooms.length === ROOMS_DATA.length) {
+                const mapScreen = document.getElementById("map-screen");
+                const victoryScreen = document.getElementById("victory-screen");
+
+                mapScreen.style.opacity = "0";
+                
+                setTimeout(() => {
+                    mapScreen.classList.add("hidden");
+                    victoryScreen.classList.remove("hidden");
+                    setTimeout(() => {
+                        victoryScreen.style.opacity = "1";
+                        triggerContinuousVictoryFX();
+                    }, 50);
+                }, 600);
+            }
+        }
+
+        /**********************************************************************
+         * SIMULACIÓN DE CELEBRACIÓN EN CANVAS (VERDE / NARANJA INSTITUCIONAL)
+         **********************************************************************/
+        const canvas = document.getElementById("fx-canvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+        let animationFrameId = null;
+
+        function setupCanvasResizing() {
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 4 + 1;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.015 + 0.01;
+                this.gravity = 0.05;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            update() {
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+        }
+
+        function triggerSuccessFireworks() {
+            const colors = ["#007A48", "#FF9214", "#55b683", "#ffffff"];
+            const originX = canvas.width / 2;
+            const originY = canvas.height * 0.7;
+
+            for (let i = 0; i < 60; i++) {
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                particles.push(new Particle(originX, originY, randomColor));
+            }
+
+            if (!animationFrameId) {
+                renderParticlesLoop();
+            }
+        }
+
+        function renderParticlesLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            if (particles.length > 0) {
+                animationFrameId = requestAnimationFrame(renderParticlesLoop);
+            } else {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function triggerContinuousVictoryFX() {
+            setInterval(() => {
+                const randomX = Math.random() * canvas.width;
+                const randomY = Math.random() * (canvas.height * 0.4);
+                const colors = ["#007A48", "#FF9214", "#ffffff"];
+                
+                for (let i = 0; i < 20; i++) {
+                    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                    particles.push(new Particle(randomX, randomY, randomColor));
+                }
+                
+                if (!animationFrameId) {
+                    renderParticlesLoop();
+                }
+            }, 800);
+        }
+    </script>
+</body>
+</html>

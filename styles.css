@@ -1,0 +1,528 @@
+ :root {
+            --color-bg: #f4f7f5;
+            --color-primary: #007A48; /* Verde Institucional COBAED */
+            --color-primary-hover: #005c36;
+            --color-accent: #FF9214; /* Naranja Institucional COBAED */
+            --color-text-dark: #1c221e;
+            --color-text-light: #ffffff;
+            --color-overlay: rgba(255, 255, 255, 0.95);
+            --color-alert: #b82525;
+            --font-academic: 'Times New Roman', Times, Baskerville, Georgia, serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: var(--color-bg);
+            color: var(--color-text-dark);
+            font-family: var(--font-academic);
+            overflow: hidden;
+        }
+
+        .hidden {
+            display: none !important;
+            opacity: 0;
+        }
+
+        /* Contenedor optimizado para adaptabilidad total */
+        #app-viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* PANTALLA 1: MAPA PRINCIPAL */
+        #map-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transition: opacity 0.6s ease-in-out, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+    opacity: 1;
+    transform-origin: center center; /* Se actualiza dinámicamente desde JS */
+}
+
+        .map-header {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px 24px;
+            border-top: 3px solid var(--color-primary);
+            border-bottom: 3px solid var(--color-primary);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .map-header h1 {
+            font-size: 1.5rem;
+            color: var(--color-primary);
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .map-header p {
+            font-size: 0.9rem;
+            color: var(--color-text-dark);
+            font-style: italic;
+        }
+
+        /* Contenedor relativo para nodos interactivos que preserva proporciones */
+        #hotspots-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Puntos Interactivos Uniformes (Verdes) */
+        .node-hotspot {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+        .node-hotspot:hover {
+            transform: translate(-50%, -50%) scale(1.08);
+        }
+
+        .node-marker {
+            width: 20px;
+            height: 20px;
+            background-color: var(--color-primary);
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .node-label {
+            margin-top: 6px;
+            white-space: nowrap;
+            background-color: var(--color-primary);
+            color: var(--color-text-light);
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border-radius: 2px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: background-color 0.3s ease;
+        }
+
+        /* Estado Completado */
+        .node-hotspot.completed {
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .node-hotspot.completed .node-marker {
+            background-color: var(--color-accent);
+            border-color: #ffffff;
+        }
+
+        .node-hotspot.completed .node-label {
+            background-color: var(--color-accent);
+        }
+
+        /* PANTALLA 2: INTERIOR DE HABITACIÓN / ZONA */
+        #room-screen {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            /* CAMBIO: Se ajustó el tiempo a 1.0s para controlar la transición exacta de la imagen */
+            transition: opacity 1.0s ease-in-out; 
+            opacity: 0;
+        }
+
+        .room-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            /* Fondo inicialmente transparente para apreciar la imagen limpia */
+            background-color: rgba(255, 255, 255, 0); 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 30px 20px;
+            box-sizing: border-box;
+            transition: background-color 0.8s ease-in-out;
+        }
+
+        .room-overlay.active-modal {
+            background-color: rgba(255, 255, 255, 0.85); /* Permite ver el fondo pero da legibilidad */
+        }
+
+        .room-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 122, 72, 0.2);
+            padding-bottom: 15px;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .room-title {
+            display: none !important; /* CAMBIO: Quita y oculta totalmente el elemento del título */
+        }
+
+        .btn-abort {
+            background-color: rgba(255, 255, 255, 0.8); /* Fondo ligero para ganar legibilidad sobre la imagen */
+            border: 1.5px solid var(--color-text-dark);
+            color: var(--color-text-dark);
+            padding: 10px 24px; /* Un poco más amplio para balance visual */
+            font-family: var(--font-academic);
+            font-size: 0.95rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            white-space: nowrap;
+            margin: 0 auto;
+            border-radius: 4px; /* Bordes suavemente redondeados */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            
+            /* SINOPSIS DE TRANSICIÓN: Oculto por defecto, aparece con el modal */
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out, background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        /* Hace que el botón aparezca fluidamente en conjunto con la transición del modal */
+        .room-overlay.active-modal .btn-abort {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Comportamiento Hover refinado e institucional */
+        .btn-abort:hover:not(:disabled) {
+            background-color: var(--color-primary);
+            color: var(--color-text-light);
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(0, 122, 72, 0.25);
+        }
+
+        .btn-abort:disabled {
+            display: none !important;
+        }
+
+        /* Contenido Centrado y Grande */
+        .room-center-panel {
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.95); /* Bloque blanco semi-translúcido para la pregunta */
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        .room-overlay.active-modal .room-center-panel {
+            opacity: 1;
+        }
+
+
+
+
+        .narrative-box {
+            font-size: 1.3rem;
+            line-height: 1.4;
+            margin-bottom: 25px;
+            color: var(--color-text-dark);
+            transition: opacity 0.8s ease-in-out;
+            opacity: 0;
+        }
+
+        .narrative-box.visible {
+            opacity: 1;
+        }
+
+        .challenge-box {
+            width: 100%;
+            transition: opacity 0.8s ease-in-out;
+            opacity: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .challenge-box.visible {
+            opacity: 1;
+        }
+
+        .challenge-question {
+            font-size: 1.2rem;
+            color: var(--color-primary);
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .interaction-form {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .academic-input {
+            width: 100%;
+            background-color: #ffffff;
+            border: 1px solid #cccccc;
+            color: var(--color-text-dark);
+            padding: 12px 15px;
+            font-family: var(--font-academic);
+            font-size: 1.1rem;
+            outline: none;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            text-transform: uppercase;
+        }
+
+        .academic-input:focus {
+            border-color: var(--color-primary);
+        }
+
+        .btn-submit {
+            background-color: var(--color-primary);
+            color: var(--color-text-light);
+            border: none;
+            padding: 12px 35px;
+            font-family: var(--font-academic);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            width: 100%;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        .feedback-message {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .feedback-message.error {
+            color: var(--color-alert);
+        }
+
+        .feedback-message.success {
+            color: var(--color-primary);
+        }
+
+        .success-action-container {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .btn-secure-return {
+            background-color: var(--color-accent);
+            color: var(--color-text-light);
+            border: none;
+            padding: 12px 40px;
+            font-family: var(--font-academic);
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+            width: 100%;
+        }
+
+        .btn-secure-return:hover {
+            transform: scale(1.03);
+        }
+
+        /* PANTALLA 3: VICTORIA TOTAL */
+        #victory-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--color-bg);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        .victory-frame {
+            border-top: 4px solid var(--color-accent);
+            border-bottom: 4px solid var(--color-accent);
+            padding: 40px 20px;
+            background-color: #ffffff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .victory-title {
+            color: var(--color-primary);
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .victory-text {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            color: var(--color-text-dark);
+            margin-bottom: 30px;
+        }
+
+        #fx-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 90;
+        }
+
+        /* MEDIA QUERIES PARA PANTALLAS MEDIANAS Y GRANDES (TABLETS / PC) */
+        @media (min-width: 768px) {
+            .map-header {
+                top: 40px;
+                padding: 20px 40px;
+                max-width: none;
+                width: auto;
+            }
+            .map-header h1 { font-size: 2.2rem; }
+            .map-header p { font-size: 1.1rem; }
+            .node-marker { width: 24px; height: 24px; }
+            .node-label { font-size: 0.95rem; padding: 6px 14px; margin-top: 8px; }
+            .room-overlay { padding: 60px; }
+            .room-title { font-size: 1.8rem; }
+            .btn-abort { font-size: 1rem; padding: 10px 22px; }
+            .narrative-box { font-size: 2rem; margin-bottom: 40px; }
+            .challenge-question { font-size: 1.6rem; margin-bottom: 30px; }
+            .interaction-form { flex-direction: row; gap: 20px; max-width: 600px; }
+            .academic-input { font-size: 1.2rem; padding: 14px 20px; width: auto; }
+            .btn-submit { font-size: 1.1rem; width: auto; }
+            .feedback-message { font-size: 1.2rem; margin-top: 25px; }
+            .success-action-container { margin-top: 30px; max-width: none; width: auto; }
+            .btn-secure-return { font-size: 1.2rem; padding: 15px 40px; width: auto; }
+            .victory-frame { padding: 60px; max-width: 800px; }
+            .victory-title { font-size: 2.6rem; margin-bottom: 25px; }
+            .victory-text { font-size: 1.4rem; margin-bottom: 40px; }
+        }
+
+        /* Animación pulsante continua para llamar la atención del usuario */
+@keyframes pulse-marker {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 122, 72, 0.7), 0 4px 12px rgba(0,0,0,0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 15px rgba(0, 122, 72, 0), 0 4px 12px rgba(0,0,0,0.4);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 122, 72, 0), 0 4px 12px rgba(0,0,0,0.4);
+    }
+}
+
+/* Marcador circular incrementado y con alto contraste */
+.node-marker {
+    width: 32px;  /* Incrementado de 20px */
+    height: 32px; /* Incrementado de 20px */
+    background-color: var(--color-primary);
+    border: 4px solid #ffffff; /* Borde más grueso para contraste */
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    animation: pulse-marker 2s infinite;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Etiqueta de texto incrementada con legibilidad mejorada */
+.node-label {
+    margin-top: 8px;
+    white-space: nowrap;
+    background-color: var(--color-primary);
+    color: var(--color-text-light);
+    padding: 6px 14px; /* Incrementado */
+    font-size: 1.1rem; /* Incrementado de 0.8rem */
+    font-weight: bold;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+/* Comportamiento al posicionar el cursor (Hover) */
+.node-hotspot:hover {
+    transform: translate(-50%, -50%) scale(1.25); /* Animación de escala impactante */
+    z-index: 10;
+}
+
+.node-hotspot:hover .node-marker {
+    background-color: var(--color-primary-hover);
+    border-color: var(--color-accent); /* Contraste dinámico */
+}
+
+.node-hotspot:hover .node-label {
+    background-color: var(--color-primary-hover);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+}
+
+/* Estado Completado */
+.node-hotspot.completed {
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.node-hotspot.completed .node-marker {
+    background-color: var(--color-accent);
+    border-color: #ffffff;
+    animation: none; /* Detiene pulsación al completar */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.node-hotspot.completed .node-label {
+    background-color: var(--color-accent);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* Media Query para pantallas grandes: Escalado proporcional mayor */
+@media (min-width: 768px) {
+    .node-marker { 
+        width: 38px; 
+        height: 38px; 
+    }
+    .node-label { 
+        font-size: 1.25rem; 
+        padding: 8px 18px; 
+        margin-top: 10px; 
+    }
+}
